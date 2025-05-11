@@ -14,7 +14,7 @@ import json
     "astrbot_plugin_llm_poke",
     "和泉智宏",
     "调用LLM的戳一戳回复插件",
-    "1.0.0",
+    "1.0",
     "https://github.com/0d00-Ciallo-0721/astrbot_plugin_llm_poke",
 )
 class LLMPokePlugin(Star):
@@ -24,6 +24,10 @@ class LLMPokePlugin(Star):
         
         # 用户戳一戳时间戳记录
         self.user_poke_timestamps = {}
+        
+        # 记录上次响应时间
+        self.last_response_time = {}
+        self.response_interval = config.get("response_interval", 3.0)  # 响应间隔时间，默认3秒
         
         # 从配置文件加载配置
         self.enabled_groups = config.get("enabled_groups", [])
@@ -100,8 +104,16 @@ class LLMPokePlugin(Star):
         if not bot_id or not sender_id or not target_id or str(target_id) != str(bot_id):
             return
             
-        # 记录戳一戳时间戳
+        # 检查响应间隔
         now = time.time()
+        last_time = self.last_response_time.get(sender_id, 0)
+        if now - last_time < self.response_interval:
+            return  # 如果间隔太短，直接忽略这次戳一戳
+            
+        # 更新最后响应时间
+        self.last_response_time[sender_id] = now
+            
+        # 记录戳一戳时间戳
         if sender_id not in self.user_poke_timestamps:
             self.user_poke_timestamps[sender_id] = []
         self.user_poke_timestamps[sender_id].append(now)
