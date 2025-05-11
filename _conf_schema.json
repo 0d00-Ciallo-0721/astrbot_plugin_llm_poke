@@ -7,10 +7,16 @@
       "type": "string"
     }
   },
-  "poke_interval": {
-    "description": "每次戳一戳间隔时间",
+  "response_interval": {
+    "description": "戳一戳响应间隔时间",
     "type": "float",
-    "hint": "连续戳一戳的时间间隔，单位为秒",
+    "hint": "机器人响应戳一戳事件的最小间隔时间(秒)，防止过于频繁地响应",
+    "default": 3.0
+  },
+  "poke_interval": {
+    "description": "反戳动作间隔时间",
+    "type": "float",
+    "hint": "机器人连续反戳的时间间隔，单位为秒",
     "default": 1.0
   },
   "normal_reply_probability": {
