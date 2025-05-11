@@ -1,0 +1,120 @@
+{
+  "enabled_groups": {
+    "description": "启用群聊列表",
+    "type": "list",
+    "hint": "只有在这些群里才会启用戳一戳功能，防止滥用",
+    "items": {
+      "type": "string"
+    }
+  },
+  "poke_interval": {
+    "description": "每次戳一戳间隔时间",
+    "type": "float",
+    "hint": "连续戳一戳的时间间隔，单位为秒",
+    "default": 1.0
+  },
+  "normal_reply_probability": {
+    "description": "不调用LLM的回复概率",
+    "type": "float",
+    "hint": "使用预设文本回复的概率，取值0-1，LLM回复概率 = 1 - 此值",
+    "default": 0.3
+  },
+  "poke_back_probability": {
+    "description": "反戳概率",
+    "type": "float",
+    "hint": "被戳后反戳的概率，取值0-1",
+    "default": 0.1
+  },
+  "super_poke_probability": {
+    "description": "超级反戳概率",
+    "type": "float",
+    "hint": "被戳后超级反戳的概率，取值0-1",
+    "default": 0.01
+  },
+  "poke_back_times": {
+    "description": "反戳次数",
+    "type": "int",
+    "hint": "普通反戳的次数",
+    "default": 1
+  },
+  "super_poke_times": {
+    "description": "超级反戳次数",
+    "type": "int",
+    "hint": "超级反戳的次数",
+    "default": 5
+  },
+  "normal_replies": {
+    "description": "预设回复列表",
+    "type": "list",
+    "hint": "当不调用LLM时使用的预设回复",
+    "items": {
+      "type": "string"
+    },
+    "default": [
+      "没有察觉到你的戳戳呢~",
+      "哎呀，我刚刚走神了，没感觉到~",
+      "嗯？有人戳我吗？可能是错觉...",
+      "刚才没注意到呢，下次戳重一点~"
+    ]
+  },
+  "poke_prompt_1": {
+    "description": "被戳提示词1",
+    "type": "string",
+    "hint": "当被戳时，用于生成回复的LLM提示词",
+    "default": "有人戳了戳你，请你回复一句俏皮的话。"
+  },
+  "poke_prompt_2": {
+    "description": "被戳提示词2",
+    "type": "string",
+    "hint": "当被戳时，用于生成回复的LLM提示词",
+    "default": "你被人戳了一下，请给出你的反应。"
+  },
+  "poke_prompt_3": {
+    "description": "被戳提示词3",
+    "type": "string",
+    "hint": "当被戳时，用于生成回复的LLM提示词",
+    "default": "你被戳了戳，请表达出一些惊讶。"
+  },
+  "poke_prompt_4": {
+    "description": "被戳提示词4",
+    "type": "string",
+    "hint": "当被戳时，用于生成回复的LLM提示词",
+    "default": "有人在玩弄你，请表达出可爱的不满。"
+  },
+  "poke_prompt_5": {
+    "description": "被戳提示词5",
+    "type": "string",
+    "hint": "当被戳时，用于生成回复的LLM提示词",
+    "default": "你被戳了戳，请表达出害羞的样子。"
+  },
+  "poke_prompt_6": {
+    "description": "被戳提示词6",
+    "type": "string",
+    "hint": "当被戳时，用于生成回复的LLM提示词",
+    "default": "有人戳了你，请表达出傲娇的反应。"
+  },
+  "poke_prompt_7": {
+    "description": "被戳提示词7",
+    "type": "string",
+    "hint": "当被戳时，用于生成回复的LLM提示词",
+    "default": "被人戳了戳，请给出一个有趣的回应。"
+  },
+  "poke_prompt_8": {
+    "description": "被戳提示词8",
+    "type": "string",
+    "hint": "当被戳时，用于生成回复的LLM提示词",
+    "default": "你被人戳了戳，请用你的个性化方式回应。"
+  },
+  "poke_back_prompt_A": {
+    "description": "反戳提示词A",
+    "type": "string",
+    "hint": "当决定反戳时，用于生成回复的LLM提示词",
+    "default": "你决定戳回对方，请说一句调皮的话。"
+  },
+  "poke_back_prompt_B": {
+    "description": "反戳提示词B",
+    "type": "string",
+    "hint": "当决定反戳时，用于生成回复的LLM提示词",
+    "default": "你要反击戳回对方，请表达出你的小得意。"
+  }
+}
