@@ -14,7 +14,7 @@ import json
     "astrbot_plugin_llm_poke",
     "和泉智宏",
     "调用LLM的戳一戳回复插件",
-    "1.0",
+    "1.0.0",
     "https://github.com/0d00-Ciallo-0721/astrbot_plugin_llm_poke",
 )
 class LLMPokePlugin(Star):
@@ -24,10 +24,6 @@ class LLMPokePlugin(Star):
         
         # 用户戳一戳时间戳记录
         self.user_poke_timestamps = {}
-        
-        # 记录上次响应时间
-        self.last_response_time = {}
-        self.response_interval = config.get("response_interval", 3.0)  # 响应间隔时间，默认3秒
         
         # 从配置文件加载配置
         self.enabled_groups = config.get("enabled_groups", [])
@@ -104,16 +100,8 @@ class LLMPokePlugin(Star):
         if not bot_id or not sender_id or not target_id or str(target_id) != str(bot_id):
             return
             
-        # 检查响应间隔
-        now = time.time()
-        last_time = self.last_response_time.get(sender_id, 0)
-        if now - last_time < self.response_interval:
-            return  # 如果间隔太短，直接忽略这次戳一戳
-            
-        # 更新最后响应时间
-        self.last_response_time[sender_id] = now
-            
         # 记录戳一戳时间戳
+        now = time.time()
         if sender_id not in self.user_poke_timestamps:
             self.user_poke_timestamps[sender_id] = []
         self.user_poke_timestamps[sender_id].append(now)
@@ -180,16 +168,54 @@ class LLMPokePlugin(Star):
             # 获取当前会话ID
             umo = event.unified_msg_origin
             curr_cid = await self.context.conversation_manager.get_curr_conversation_id(umo)
-            conversation = await self.context.conversation_manager.get_conversation(umo, curr_cid)
-            contexts = json.loads(conversation.history)
+            conversation = None
+            contexts = []
+            
+            # 获取当前会话对象和上下文
+            if curr_cid:
+                conversation = await self.context.conversation_manager.get_conversation(umo, curr_cid)
+                if conversation:
+                    contexts = json.loads(conversation.history)
             
             # 获取当前人格设置
             provider = self.context.get_using_provider()
             if not provider:
                 return random.choice(self.normal_replies)
+            
+            # 动态获取人格提示词
+            personality_prompt = ""
+            
+            # 从会话中获取人格ID
+            if conversation and hasattr(conversation, 'persona_id'):
+                persona_id = conversation.persona_id
                 
-            personality = provider.curr_personality
-            personality_prompt = personality["prompt"] if personality else ""
+                # 获取所有已加载的人格
+                all_personas = self.context.provider_manager.personas
+                
+                # 如果用户明确取消了人格
+                if persona_id == "[%None]":
+                    personality_prompt = ""  # 用户明确取消了人格，使用空提示
+                # 如果用户设置了特定人格
+                elif persona_id:
+                    # 在所有人格中查找匹配的人格
+                    for persona in all_personas:
+                        if persona.get("name") == persona_id:
+                            personality_prompt = persona.get("prompt", "")
+                            break
+                # 如果没有设置人格（新会话），使用默认人格
+                else:
+                    # 获取默认人格名称
+                    default_persona_name = self.context.provider_manager.selected_default_persona.get("name")
+                    if default_persona_name:
+                        # 在所有人格中查找默认人格
+                        for persona in all_personas:
+                            if persona.get("name") == default_persona_name:
+                                personality_prompt = persona.get("prompt", "")
+                                break
+            
+            # 如果上面的逻辑没有找到人格提示词，使用提供商的当前人格作为备选
+            if not personality_prompt and hasattr(provider, 'curr_personality') and provider.curr_personality:
+                personality_prompt = provider.curr_personality.get("prompt", "")
             
             # 格式化提示词，加入用户名
             format_prompt = prompt_template.format(username=event.get_sender_name())
@@ -206,6 +232,7 @@ class LLMPokePlugin(Star):
         except Exception as e:
             logger.error(f"LLM调用失败: {e}")
             return None
+
             
     async def do_poke_back(self, event: AiocqhttpMessageEvent, user_id: int, group_id: int, times: int):
         """执行反戳操作"""
