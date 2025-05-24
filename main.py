@@ -14,7 +14,7 @@ import json
     "astrbot_plugin_llm_poke",
     "和泉智宏",
     "调用LLM的戳一戳回复插件",
-    "1.0.0",
+    "1.1",
     "https://github.com/0d00-Ciallo-0721/astrbot_plugin_llm_poke",
 )
 class LLMPokePlugin(Star):
