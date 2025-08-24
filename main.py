@@ -159,8 +159,8 @@ class LLMPokePlugin(Star):
                 # 执行超级反戳
                 await self.do_poke_back(event, sender_id, group_id, self.super_poke_times)
             
-        # 停止事件传播
-        event.stop_event()
+        # 阻止默认的LLM请求，但允许事件继续传播给其他插件
+        event.should_call_llm(False)
         
     async def get_llm_respond(self, event: AstrMessageEvent, prompt_template: str) -> str:
         """调用LLM生成回复"""
