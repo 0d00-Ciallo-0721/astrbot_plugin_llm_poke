@@ -1,4 +1,10 @@
 {
+  "trigger_probability": {
+    "description": "触发回复的总概率",
+    "type": "float",
+    "hint": "设置一个0到1之间的数值，决定机器人被戳后有多大的概率会做出回应。1为100%回应。",
+    "default": 1.0
+  },
   "enabled_groups": {
     "description": "启用群聊列表",
     "type": "list",
