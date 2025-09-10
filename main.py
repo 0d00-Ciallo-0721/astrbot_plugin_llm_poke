@@ -14,7 +14,7 @@ import json
     "astrbot_plugin_llm_poke",
     "和泉智宏",
     "调用LLM的戳一戳回复插件",
-    "1.1",
+    "1.3",
     "https://github.com/0d00-Ciallo-0721/astrbot_plugin_llm_poke",
 )
 class LLMPokePlugin(Star):
@@ -26,6 +26,7 @@ class LLMPokePlugin(Star):
         self.user_poke_timestamps = {}
         
         # 从配置文件加载配置
+        self.trigger_probability = config.get("trigger_probability", 1.0)  
         self.enabled_groups = config.get("enabled_groups", [])
         self.poke_interval = config.get("poke_interval", 1.0)
         
@@ -99,6 +100,11 @@ class LLMPokePlugin(Star):
         # 检查是否是用户戳机器人
         if not bot_id or not sender_id or not target_id or str(target_id) != str(bot_id):
             return
+
+        # <-- 新增：根据总概率决定是否响应 -->
+        if random.random() > self.trigger_probability:
+            logger.info(f"戳一戳事件未达到触发概率({self.trigger_probability})，本次不响应。")
+            return  # 未达到概率，不执行任何操作
             
         # 记录戳一戳时间戳
         now = time.time()
