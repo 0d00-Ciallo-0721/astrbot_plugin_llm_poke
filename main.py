@@ -79,35 +79,31 @@ class LLMPokePlugin(Star):
     @filter.event_message_type(filter.EventMessageType.ALL)
     async def on_poke(self, event: AstrMessageEvent):
         """监听并响应戳一戳事件"""
-        # 仅处理aiocqhttp平台的事件
-        if event.get_platform_name() != "aiocqhttp":
-            return
-            
         raw_message = getattr(event.message_obj, "raw_message", None)
-        
-        # 检查是否为戳一戳事件
-        if (
-            not raw_message or
-            raw_message.get('post_type') != 'notice' or
-            raw_message.get('notice_type') != 'notify' or
-            raw_message.get('sub_type') != 'poke'
-        ):
-            return
-            
-        # 获取事件相关信息
-        bot_id = raw_message.get('self_id')
-        sender_id = raw_message.get('user_id')
-        target_id = raw_message.get('target_id')
-        group_id = raw_message.get('group_id')
 
-        # Only handle poke events where the user poked this bot.
-        if not bot_id or not sender_id or not target_id or str(target_id) != str(bot_id):
+        if not self._is_poke_event(event, raw_message):
             return
 
         # Poke notices contain a Poke component that aiocqhttp cannot send back
-        # through AstrBot's generic respond stage. Consume the event here.
+        # through AstrBot's generic respond stage. Consume every poke event here.
         event.should_call_llm(False)
         event.stop_event()
+
+        # 获取事件相关信息
+        bot_id = self._get_self_id(event, raw_message)
+        sender_id = raw_message.get('user_id') if isinstance(raw_message, dict) else None
+        target_id = raw_message.get('target_id') if isinstance(raw_message, dict) else None
+        group_id = raw_message.get('group_id') if isinstance(raw_message, dict) else None
+
+        # Only handle poke events where the user poked this bot.
+        if (
+            not bot_id
+            or not sender_id
+            or not target_id
+            or str(target_id) != str(bot_id)
+            or str(sender_id) == str(bot_id)
+        ):
+            return
 
         # --- v1.4 Update: 黑名单检查 ---
         if str(sender_id) in self.blacklisted_users:
@@ -132,10 +128,6 @@ class LLMPokePlugin(Star):
                 return
         # -----------------------------
             
-        # 检查是否是用户戳机器人
-        if not bot_id or not sender_id or not target_id or str(target_id) != str(bot_id):
-            return
-
         # 根据总概率决定是否响应
         if random.random() > self.trigger_probability:
             logger.info(f"戳一戳事件未达到触发概率({self.trigger_probability})，本次不响应。")
@@ -168,21 +160,46 @@ class LLMPokePlugin(Star):
 
         action_rand = random.random()
         if action_rand < self.poke_back_probability:
-            poke_back_prompt_key = random.choice(list(self.poke_back_prompts.keys()))
-            poke_back_prompt = self.poke_back_prompts[poke_back_prompt_key]
-            poke_back_response = await self.get_llm_respond(event, poke_back_prompt)
-            if poke_back_response:
-                await event.send(event.plain_result(poke_back_response))
             await self.do_poke_back(event, sender_id, group_id, self.poke_back_times)
         elif action_rand < self.poke_back_probability + self.super_poke_probability:
-            poke_back_prompt_key = random.choice(list(self.poke_back_prompts.keys()))
-            poke_back_prompt = self.poke_back_prompts[poke_back_prompt_key]
-            poke_back_response = await self.get_llm_respond(event, poke_back_prompt)
-            if poke_back_response:
-                await event.send(event.plain_result(poke_back_response))
             await self.do_poke_back(event, sender_id, group_id, self.super_poke_times)
 
         return
+
+    def _is_poke_event(self, event: AstrMessageEvent, raw_message) -> bool:
+        if isinstance(raw_message, dict) and (
+            raw_message.get("post_type") == "notice"
+            and raw_message.get("notice_type") == "notify"
+            and raw_message.get("sub_type") == "poke"
+        ):
+            return True
+
+        try:
+            messages = event.get_messages()
+        except Exception:
+            messages = []
+
+        for component in messages:
+            component_type = getattr(component, "type", "")
+            type_value = getattr(component_type, "value", component_type)
+            if str(type_value).lower() == "poke":
+                return True
+            if component.__class__.__name__.lower() == "poke":
+                return True
+            if isinstance(component, dict) and str(component.get("type", "")).lower() == "poke":
+                return True
+        return False
+
+    def _get_self_id(self, event: AstrMessageEvent, raw_message) -> str | None:
+        if isinstance(raw_message, dict) and raw_message.get("self_id"):
+            return str(raw_message["self_id"])
+        try:
+            value = event.get_self_id()
+            if value:
+                return str(value)
+        except Exception:
+            pass
+        return None
 
     async def get_llm_respond(self, event: AstrMessageEvent, prompt_template: str) -> str:
         """调用LLM生成回复"""
