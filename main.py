@@ -100,6 +100,15 @@ class LLMPokePlugin(Star):
         target_id = raw_message.get('target_id')
         group_id = raw_message.get('group_id')
 
+        # Only handle poke events where the user poked this bot.
+        if not bot_id or not sender_id or not target_id or str(target_id) != str(bot_id):
+            return
+
+        # Poke notices contain a Poke component that aiocqhttp cannot send back
+        # through AstrBot's generic respond stage. Consume the event here.
+        event.should_call_llm(False)
+        event.stop_event()
+
         # --- v1.4 Update: 黑名单检查 ---
         if str(sender_id) in self.blacklisted_users:
             logger.info(f"用户 {sender_id} 在黑名单中，忽略戳一戳。")
