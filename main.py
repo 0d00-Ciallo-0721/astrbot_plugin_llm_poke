@@ -152,57 +152,38 @@ class LLMPokePlugin(Star):
         self.user_poke_timestamps[sender_id] = [
             t for t in self.user_poke_timestamps[sender_id] if t > three_minutes_ago
         ]
-        
-        # 根据概率决定是否使用普通回复还是LLM回复
+
+        response = None
         if random.random() < self.normal_reply_probability:
-            # 使用普通回复
             response = random.choice(self.normal_replies)
-            yield event.plain_result(response)
         else:
-            # 使用LLM回复
             poke_prompt_key = random.choice(list(self.poke_prompts.keys()))
             poke_prompt = self.poke_prompts[poke_prompt_key]
-            
-            # 调用LLM生成回复
             response = await self.get_llm_respond(event, poke_prompt)
-            if response:
-                yield event.plain_result(response)
-            else:
-                # LLM调用失败，使用普通回复
+            if not response:
                 response = random.choice(self.normal_replies)
-                yield event.plain_result(response)
-            
-            # 根据概率决定是否反戳
-            action_rand = random.random()
-            if action_rand < self.poke_back_probability:
-                # 普通反戳
-                poke_back_prompt_key = random.choice(list(self.poke_back_prompts.keys()))
-                poke_back_prompt = self.poke_back_prompts[poke_back_prompt_key]
-                
-                # 调用LLM生成反戳回复
-                poke_back_response = await self.get_llm_respond(event, poke_back_prompt)
-                if poke_back_response:
-                    yield event.plain_result(poke_back_response)
-                
-                # 执行反戳
-                await self.do_poke_back(event, sender_id, group_id, self.poke_back_times)
-                
-            elif action_rand < self.poke_back_probability + self.super_poke_probability:
-                # 超级反戳
-                poke_back_prompt_key = random.choice(list(self.poke_back_prompts.keys()))
-                poke_back_prompt = self.poke_back_prompts[poke_back_prompt_key]
-                
-                # 调用LLM生成超级反戳回复
-                poke_back_response = await self.get_llm_respond(event, poke_back_prompt)
-                if poke_back_response:
-                    yield event.plain_result(poke_back_response)
-                
-                # 执行超级反戳
-                await self.do_poke_back(event, sender_id, group_id, self.super_poke_times)
-            
-        # 阻止默认的LLM请求，但允许事件继续传播给其他插件
-        event.should_call_llm(False)
-        
+
+        if response:
+            await event.send(event.plain_result(response))
+
+        action_rand = random.random()
+        if action_rand < self.poke_back_probability:
+            poke_back_prompt_key = random.choice(list(self.poke_back_prompts.keys()))
+            poke_back_prompt = self.poke_back_prompts[poke_back_prompt_key]
+            poke_back_response = await self.get_llm_respond(event, poke_back_prompt)
+            if poke_back_response:
+                await event.send(event.plain_result(poke_back_response))
+            await self.do_poke_back(event, sender_id, group_id, self.poke_back_times)
+        elif action_rand < self.poke_back_probability + self.super_poke_probability:
+            poke_back_prompt_key = random.choice(list(self.poke_back_prompts.keys()))
+            poke_back_prompt = self.poke_back_prompts[poke_back_prompt_key]
+            poke_back_response = await self.get_llm_respond(event, poke_back_prompt)
+            if poke_back_response:
+                await event.send(event.plain_result(poke_back_response))
+            await self.do_poke_back(event, sender_id, group_id, self.super_poke_times)
+
+        return
+
     async def get_llm_respond(self, event: AstrMessageEvent, prompt_template: str) -> str:
         """调用LLM生成回复"""
         try:
