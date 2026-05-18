@@ -86,19 +86,17 @@ class LLMPokePlugin(Star):
         raw_message = getattr(event.message_obj, "raw_message", None)
         
         # 检查是否为戳一戳事件
-        if (
-            not raw_message or
-            raw_message.get('post_type') != 'notice' or
-            raw_message.get('notice_type') != 'notify' or
-            raw_message.get('sub_type') != 'poke'
-        ):
+        if not self._is_poke_event(event, raw_message):
             return
+
+        # 阻止默认LLM/通用响应链处理Poke组件，但不阻断后续插件事件传播
+        event.should_call_llm(False)
             
         # 获取事件相关信息
-        bot_id = raw_message.get('self_id')
-        sender_id = raw_message.get('user_id')
-        target_id = raw_message.get('target_id')
-        group_id = raw_message.get('group_id')
+        bot_id = self._get_self_id(event, raw_message)
+        sender_id = raw_message.get('user_id') if isinstance(raw_message, dict) else None
+        target_id = raw_message.get('target_id') if isinstance(raw_message, dict) else None
+        group_id = raw_message.get('group_id') if isinstance(raw_message, dict) else None
 
         # --- v1.4 Update: 黑名单检查 ---
         if str(sender_id) in self.blacklisted_users:
@@ -148,7 +146,7 @@ class LLMPokePlugin(Star):
         if random.random() < self.normal_reply_probability:
             # 使用普通回复
             response = random.choice(self.normal_replies)
-            yield event.plain_result(response)
+            await event.send(event.plain_result(response))
         else:
             # 使用LLM回复
             poke_prompt_key = random.choice(list(self.poke_prompts.keys()))
@@ -157,11 +155,11 @@ class LLMPokePlugin(Star):
             # 调用LLM生成回复
             response = await self.get_llm_respond(event, poke_prompt)
             if response:
-                yield event.plain_result(response)
+                await event.send(event.plain_result(response))
             else:
                 # LLM调用失败，使用普通回复
                 response = random.choice(self.normal_replies)
-                yield event.plain_result(response)
+                await event.send(event.plain_result(response))
             
             # 根据概率决定是否反戳
             action_rand = random.random()
@@ -173,7 +171,7 @@ class LLMPokePlugin(Star):
                 # 调用LLM生成反戳回复
                 poke_back_response = await self.get_llm_respond(event, poke_back_prompt)
                 if poke_back_response:
-                    yield event.plain_result(poke_back_response)
+                    await event.send(event.plain_result(poke_back_response))
                 
                 # 执行反戳
                 await self.do_poke_back(event, sender_id, group_id, self.poke_back_times)
@@ -186,13 +184,45 @@ class LLMPokePlugin(Star):
                 # 调用LLM生成超级反戳回复
                 poke_back_response = await self.get_llm_respond(event, poke_back_prompt)
                 if poke_back_response:
-                    yield event.plain_result(poke_back_response)
+                    await event.send(event.plain_result(poke_back_response))
                 
                 # 执行超级反戳
                 await self.do_poke_back(event, sender_id, group_id, self.super_poke_times)
-            
-        # 阻止默认的LLM请求，但允许事件继续传播给其他插件
-        event.should_call_llm(False)
+
+    def _is_poke_event(self, event: AstrMessageEvent, raw_message) -> bool:
+        if isinstance(raw_message, dict) and (
+            raw_message.get("post_type") == "notice"
+            and raw_message.get("notice_type") == "notify"
+            and raw_message.get("sub_type") == "poke"
+        ):
+            return True
+
+        try:
+            messages = event.get_messages()
+        except Exception:
+            messages = []
+
+        for component in messages:
+            component_type = getattr(component, "type", "")
+            type_value = getattr(component_type, "value", component_type)
+            if str(type_value).lower() == "poke":
+                return True
+            if component.__class__.__name__.lower() == "poke":
+                return True
+            if isinstance(component, dict) and str(component.get("type", "")).lower() == "poke":
+                return True
+        return False
+
+    def _get_self_id(self, event: AstrMessageEvent, raw_message) -> str | None:
+        if isinstance(raw_message, dict) and raw_message.get("self_id"):
+            return str(raw_message["self_id"])
+        try:
+            value = event.get_self_id()
+            if value:
+                return str(value)
+        except Exception:
+            pass
+        return None
         
     async def get_llm_respond(self, event: AstrMessageEvent, prompt_template: str) -> str:
         """调用LLM生成回复"""
